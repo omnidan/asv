@@ -10,12 +10,18 @@ or
 
     $ git clone git://github.com/omnidan/asv.git && cd asv && make install
 
+### Quickstart
+    $ asv latest
+    $ atoms
+
 ### Installing Binaries
 
 Install a few versions, the version given becomes the active atom-shell binary once installation is complete.
 
     $ asv 0.20.5
     $ asv 0.20.4
+
+Run `atoms` to run the selected version of atom-shell.
 
 List installed binaries:
 
