@@ -1,4 +1,4 @@
-# asv
+# asv [![npm version](https://badge.fury.io/js/asv.svg)](http://badge.fury.io/js/asv)
 
  [Atom Shell](https://github.com/atom/atom-shell) version manager
 
