@@ -1,0 +1,652 @@
+#!/usr/bin/env bash
+
+ASV_PREFIX=${ASV_PREFIX-/usr/local}
+ASV_DIR=$ASV_PREFIX/asv
+VERSIONS_DIR=$ASV_DIR/versions
+BUILD_DIR_BASE=$ASV_DIR/atom-shell-
+
+# asv version
+VERSION="0.1.0"
+
+# log path
+LOGPATH="/tmp/asv.log"
+
+#
+# Log the given <msg ...>
+#
+
+log() {
+  printf "\033[90m...\033[0m $@\n"
+}
+
+#
+# Exit with the given <msg ...>
+#
+
+abort() {
+  printf "\033[31mError: $@\033[0m\n" && exit 1
+}
+
+# setup
+
+test -d $VERSIONS_DIR || mkdir -p $VERSIONS_DIR
+
+if ! test -d $VERSIONS_DIR; then
+  abort "Failed to create versions directory ($VERSIONS_DIR), do you have permissions to do this?"
+fi
+
+# curl / wget support
+
+GET=
+
+# wget support (Added --no-check-certificate for Github downloads)
+which wget > /dev/null && GET="wget -q -O-"
+
+# curl support
+which curl > /dev/null && GET="curl -# -L"
+
+# Ensure we have curl or wget
+
+test -z "$GET" && abort "curl or wget required"
+
+#
+# Output usage information.
+#
+
+display_help() {
+  cat <<-help
+
+  Usage: asv [options] [COMMAND] [config]
+
+  Commands:
+
+    asv                            Output versions installed
+    asv latest [config ...]        Install or activate the latest atom-shell release
+    asv stable [config ...]        Install or activate the latest stable atom-shell release
+    asv <version> [config ...]     Install and/or use atom-shell <version>
+    asv custom <version> <tarball> [config ...]  Install custom atom-shell <tarball> with [args ...]
+    asv use <version> [args ...]   Execute atom-shell <version> with [args ...]
+    asv bin <version>              Output bin path for <version>
+    asv rm <version ...>           Remove the given version(s)
+    asv --latest                   Output the latest atom-shell version available
+    asv --stable                   Output the latest stable atom-shell version available
+    asv ls                         Output the versions of atom-shell available
+    asv src <version>              Output the url for source used for the given <version>
+                                     (useful if installed from source)
+    asv pre <event> [script]       Declare one or list scripts to execute before <event>
+                                     (scripts must use absolute paths)
+    asv post <event> [script]      Declare one or list scripts to execute after <event>
+                                     (scripts must use absolute paths)
+    asv pre <event> rm [script]    Remove pre <event> script
+    asv post <event> rm [script]   Remove post <event> script
+
+  Events:
+
+    change   Occurs when switching atom-shell versions
+    install  Occurs when installing a previously uninstalled atom-shell version
+
+  Options:
+
+    -v, -V, --version   Output current version of m
+    -h, --help      Display help information
+
+  Aliases:
+
+    which   bin
+    use     as
+    list    ls
+    custom  c
+
+help
+  exit 0
+}
+
+#
+# Output asv version.
+#
+
+display_asv_version() {
+  echo $VERSION && exit 0
+}
+
+#
+# Check for installed version, and populate $active
+#
+check_current_version() {
+  cd $ASV_PREFIX
+  which atoms &> /dev/null
+  if test $? -eq 0; then
+    active=`atoms --version | egrep -o '[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?'`
+  fi
+}
+
+#
+# Display current atoms --version
+# and others installed.
+#
+
+display_versions() {
+  check_current_version
+  local versions=`ls -1 $VERSIONS_DIR | sort -t. -k 1,1n -k 2,2n -k 3,3n`
+  for version in $versions; do
+    local dir="$VERSIONS_DIR/$version"
+    local config=`test -f $dir/.config && cat $dir/.config`
+    if test "$version" = "$active"; then
+      printf "  \033[32mο\033[0m $version \033[90m$config\033[0m\n"
+    else
+      printf "    $version \033[90m$config\033[0m\n"
+    fi
+  done
+}
+
+#
+# Install atoms <version> [config ...]
+#
+
+install_atoms() {
+  local version=$1; shift
+  local config=$@
+  check_current_version
+
+  if test "$version" = "$active"; then
+    echo "$version already active"
+    exit 0;
+  fi
+
+  # activate
+  local dir=$VERSIONS_DIR/$version
+  if test -d $dir; then
+    pre change
+    rm $ASV_PREFIX/bin/atoms 2>&1
+    cd $dir \
+      && ln -s $dir/atoms $ASV_PREFIX/bin/atoms \
+      && post change
+  # install
+  else
+    prompt_install "atom-shell version $version is not installed."
+    install_bin $version $config
+  fi
+}
+
+#
+# Prompt installation
+#
+#   prompt_install "About to install something"
+#
+
+prompt_install() {
+  echo $1
+  while true; do
+    read -p "Installation may take a while. Would you like to proceed? [y/n] " yn
+    case $yn in
+      [Yy]* ) break;;
+      [Nn]* ) echo "Aborted."; exit 0;;
+      * ) echo "Please answer yes or no.";;
+    esac
+  done
+}
+
+#
+# Install atoms <version> binary
+#
+#   template    https://github.com/atom/atom-shell/releases/download/$VERSION/atom-shell-$VERSION-$OS-$ARCH.zip
+#
+#   linux32     https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-linux-ia32.zip
+#   linux64     https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-linux-x64.zip
+#   osx64       https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-darwin-x64.zip
+#   
+#   not supported
+#   win32       https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-win32-ia32.zip
+#
+
+install_bin() {
+  local version=$1
+  local config=$2
+
+  if ! test -z $config; then
+    # config was passed, must build from source
+    local tarball="v$version"
+    local url="https://github.com/atom/atom-shell/tarball/$tarball"
+    install_tarball $version $url $config
+    exit 0
+  fi
+
+  # determine url based on os and arch
+
+  local arch=`uname -m`
+  local OS=`uname`
+  local os=`echo $OS | tr '[:upper:]' '[:lower:]'`
+
+  case $os in
+    linux* )
+      os=linux ;;
+    darwin* )
+      os=darwin ;;
+    * )
+      bin_not_supported $OS $version $config ;;
+  esac
+
+  case $arch in
+    i386* )
+      arch=ia32 ;;
+    x86_64* )
+      arch=x64 ;;
+    * )
+      bin_not_supported $OS $version $config ;;
+  esac
+
+  # check the download url
+  local zip="atom-shell-v$version-$os-$arch.zip"
+  local url="https://github.com/atom/atom-shell/releases/download/v$version/$zip"
+
+  if ! good $url; then
+    bin_not_supported $OS $version $config
+    exit 0;
+  fi
+
+  log "installing binary"
+
+  pre install
+
+  # perform the download
+  local builddir="$BUILD_DIR_BASE$version"
+  download $version $url $builddir
+
+  case $os in
+    linux* )
+      ln -s ./atom ./atoms ;;
+    darwin* )
+      ln -s ./Atom.app/Contents/MacOS/Atom ./atoms ;;
+  esac
+
+  # copy binaries to version directory
+  local dir=$VERSIONS_DIR/$version
+  mkdir -p $VERSIONS_DIR
+
+  mv "$builddir" $dir \
+    && cleanup "$builddir" \
+    && install_atoms $version \
+    && ln -sf $dir "$ASV_PREFIX/asv/current" \
+    && post install \
+    && log "installation complete"
+}
+
+# Install atoms <version> from source <tarball> [config ...]
+#
+#   asv custom 0.20.5 https://github.com/atom/atom-shell/tarball/v0.20.5 flags
+#
+
+install_tarball() {
+  echo "This feature is currently not supported."
+  exit 0
+
+  log "installing from source"
+
+  pre install
+
+  local version=$1
+  local url=$2; shift 2
+  local config=$@
+
+  local builddir="$BUILD_DIR_BASE$version"
+
+  download $version $url $builddir
+
+  local dir=$VERSIONS_DIR/$version
+
+  # TODO: replace scons with atom-shell build system
+  cd "$builddir" \
+    && scons all \
+    && scons --prefix $dir $config install \
+    && cd .. \
+    && cleanup "$builddir" \
+    && echo $config > "$dir/.config" \
+    && $0 $version \
+    && ln -sf $dir "$ASV_PREFIX/asv/current" \
+    && post install \
+    && log "installation complete"
+}
+
+#
+# Determine if $url is good
+#
+
+good() {
+  local url=$1
+  curl -Is $url | head -n 1 | grep 302 > /dev/null
+}
+
+#
+# Prompt when we cannot install binary
+#
+
+bin_not_supported() {
+  local OS=$1
+  local version=$2
+  local config=$3
+  local tarball="v$version"
+  local url="https://github.com/atom/atom-shell/tarball/$tarball"
+  prompt_install "Binary for \"$OS $version\" not supported. Attempting to install from source."
+  log "installing from source"
+  install_tarball $version $url $config
+}
+
+#
+# Download and unzip
+#
+
+download() {
+  local version=$1
+  local url=$2
+  local builddir=$3
+
+  # create build directory
+  mkdir -p $builddir
+
+  # fetch and unpack
+  cd $builddir \
+    && $GET $url > atom-shell.zip \
+    && unzip ./atom-shell.zip > $LOGPATH 2>&1
+
+  # see if things are alright
+  if test $? -gt 0; then
+    cleanup "$builddir"
+    printf "\033[31mError: installation failed\033[0m\n"
+    printf "  atom-shell version $version does not exist,\n"
+    printf "  asv failed to fetch the zip,\n"
+    printf "  or unzip failed. Try a different\n"
+    printf "  version or view $LOGPATH to view\n"
+    printf "  error details.\n"
+    exit 1
+  fi
+
+  rm ./atom-shell.zip
+}
+
+#
+# Cleanup after the given <version>
+#
+
+cleanup() {
+  local dir=$1
+
+  if test -d $dir; then
+    log "removing source"
+    rm -rf $dir
+  fi
+}
+
+#
+# Remove <versions ...>
+#
+
+remove_versions() {
+  test -z $1 && abort "version(s) required"
+  check_current_version
+  while test $# -ne 0; do
+    local version=${1#v}
+    if test "$version" = "$active"; then
+      printf "\033[33mSKIPPING\033[0m active version $version. "
+      printf "Please change versions before removing.\n"
+    else
+      rm -rf $VERSIONS_DIR/$version
+      echo "removed $version"
+    fi
+
+    shift
+  done
+}
+
+#
+# Output bin path for <version>
+#
+
+display_bin_path_for_version() {
+  test -z $1 && abort "version required"
+  local version=${1#v}
+  local bin=$VERSIONS_DIR/$version
+  if test -f "$bin/atoms"; then
+    echo $bin
+  else
+    abort "$1 is not installed"
+  fi
+}
+
+#
+# Execute the given <version> of atom-shell
+# with [args ...]
+#
+
+execute_with_version() {
+  test -z $1 && abort "version required"
+  local version=${1#v}
+  local bin=$VERSIONS_DIR/$version/atoms
+
+  shift # remove version
+
+  if test -f $bin; then
+    $bin $@
+  else
+    abort "$version is not installed"
+  fi
+}
+
+#
+# Display the latest atom-shell release version.
+#
+
+display_latest_version() {
+  $GET 2> /dev/null https://api.github.com/repos/atom/atom-shell/releases \
+    | egrep -o 'atom-shell v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
+    | sort -u -k 1,1n -k 2,2n -k 3,3 -t . \
+    | awk -F 'v' '{ print $2 }' \
+    | tail -n1
+}
+
+#
+# Display the latest stable atom-shell release version.
+# TODO: once atom-shell hits stable, update this to get the actual stable version
+#
+
+display_latest_stable_version() {
+  $GET 2> /dev/null https://api.github.com/repos/atom/atom-shell/releases \
+    | egrep -o 'atom-shell v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
+    | sort -u -k 1,1n -k 2,2n -k 3,3 -t . \
+    | awk -F 'v' '{ print $2 }' \
+    | tail -n1
+}
+
+#
+# Display the available atom-shell versions.
+#
+
+list_versions() {
+  check_current_version
+  local versions=""
+  versions=`$GET 2> /dev/null https://api.github.com/repos/atom/atom-shell/releases \
+    | egrep -o 'atom-shell v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
+    | sort -u -k 1,1n -k 2,2n -k 3,3 -t . \
+    | awk -F 'v' '{ print "  " $2 }'`
+
+  for v in $versions; do
+    if test "$active" = "$v"; then
+      printf "  \033[32mο\033[0m $v \033[0m\n"
+    else
+      if test -d $VERSIONS_DIR/$v; then
+        printf "  * $v \033[0m\n"
+      else
+        printf "    $v\n"
+      fi
+    fi
+  done
+}
+
+#
+# Display src url for given <version>.
+#
+
+list_src_url() {
+  test -z $1 && abort "version required"
+  local version=$1
+  local tarball="v$version"
+  local url="https://github.com/atom/atom-shell/tarball/$tarball"
+  echo "$url"
+}
+
+#
+# store a hook
+#
+
+install_hook() {
+  local hook=$1
+  local event=$2
+  local path=$3
+  local file="$ASV_DIR/$1_$2"
+
+  #log "installing $1 hook into $file"
+  touch $file
+
+  validate_event $event
+
+  # with no path, print all hooks
+  if [ "" = "$path" ]; then
+    if [ "pre" = $hook ]; then
+      list_pres $event
+    else
+      list_posts $event
+    fi
+    exit 0
+  fi
+
+  if [ "-" = $path ] || [ "rm" = $path ]; then
+    # removing script or all scripts
+    if [ "" = "$4" ]; then
+      # remove all
+      cat /dev/null > $file
+    else
+      # remove specified
+      # skip sed & avoid path escaping issues
+      touch tmp
+      while read line
+      do
+        if ! [ $4 = $line ]; then
+          echo $line >> tmp
+        fi
+      done < $file
+      mv tmp $file
+    fi
+  else
+    # add hook
+
+    if ! test -x $path; then
+      abort "not an executable file: $path"
+    fi
+
+    if ! [[ $path == /* ]]; then
+      abort "not an absolute path: $path"
+    fi
+
+    # (ensure it exists only once)
+    # skip sed & avoid path escaping issues
+    while read line
+    do
+      if [ $path = $line ]; then
+        exit 0
+      fi
+    done < $file
+
+    echo $path >> $file
+  fi
+}
+
+#
+# validates hook type
+# {install,change}
+#
+
+validate_event() {
+  if ! ([ "$1" = "install" ] || [ "$1" = "change" ]); then
+    abort "invalid hook event: '$1'. Must be 'install' or 'change'."
+  fi
+}
+
+#
+# executes pre hooks
+#
+
+pre() {
+  local file=$ASV_DIR/pre_$1
+  if test -f $file; then
+    while read line
+    do
+      $line
+    done < $file
+  fi
+}
+
+#
+# executes post hooks
+#
+
+post() {
+  local file=$ASV_DIR/post_$1
+  if test -f $file; then
+    while read line
+    do
+      $line
+    done < $file
+  fi
+}
+
+#
+# print all pre hooks
+#
+
+list_pres() {
+  if test -f $ASV_DIR/pre_$1; then
+    while read line
+    do
+      echo $line
+    done < $ASV_DIR/pre_$1
+  fi
+}
+
+#
+# print all post hooks
+#
+
+list_posts() {
+  if test -f $ASV_DIR/post_$1; then
+    while read line
+    do
+      echo $line
+    done < $ASV_DIR/post_$1
+  fi
+}
+
+# Handle arguments
+
+if test $# -eq 0; then
+  display_versions
+else
+  while test $# -ne 0; do
+    case $1 in
+      -v|-V|--version) display_asv_version ;;
+      -h|--help|help) display_help ;;
+      --latest) display_latest_version $2; exit ;;
+      --stable) display_latest_stable_version $2; exit ;;
+      bin|which) display_bin_path_for_version $2; exit ;;
+      as|use) shift; execute_with_version $@; exit ;;
+      rm) shift; remove_versions $@; exit ;;
+      latest) install_atoms `$0 --latest`; exit ;;
+      stable) install_atoms `$0 --stable`; exit ;;
+      ls|list) list_versions $2; exit ;;
+      c|custom) shift; install_tarball $@; exit ;;
+      pre) shift; install_hook pre $@; exit ;;
+      post) shift; install_hook post $@; exit ;;
+      src) shift; list_src_url $@; exit;;
+      *) install_atoms $@; exit ;;
+    esac
+    shift
+  done
+fi

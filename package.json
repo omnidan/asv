@@ -1,0 +1,26 @@
+{
+  "name": "asv",
+  "version": "0.1.0",
+  "description": "atom-shell version management",
+  "homepage": "https://github.com/omnidan/asv",
+  "bugs": "https://github.com/omnidan/asv/issues",
+  "bin": { "asv": "./bin/asv" },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [
+    "atom-shell",
+    "atom",
+    "shell",
+    "version",
+    "manage",
+    "binary"
+  ],
+  "author": "Daniel Bugl <daniel.bugl+github@gmail.com>",
+  "contributors": [
+    "Aaron Heckmann <aaron.heckmann+github@gmail.com>",
+    "TJ Holowaychuk <tj@vision-media.ca>"
+  ],
+  "license": "MIT",
+  "repository": { "type": "git", "url": "git://github.com/omnidan/asv.git" }
+}
