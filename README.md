@@ -39,11 +39,11 @@ Use or install the stable official release (_Note: Right now there is no stable 
 
     $ asv stable
 
-Install a custom or patched version of atom-shell from a tarball:
+Install a custom or patched version of atom-shell from a zipball:
 
-    $ asv custom 0.20.5-me https://github.com/atom/atom-shell/tarball/v0.20.5
+    $ asv custom 0.20.5-me https://github.com/atom/atom-shell/zipball/v0.20.5
     
-Install a version of atom-shell from source (_Note: This is not available at the moment_):
+Install a version of atom-shell from source:
 
     $ asv 0.20.5 source
 
@@ -105,7 +105,7 @@ Remove all post install hooks:
     $ asv post install rm
 
 ## Automatically keeping atom-shell up-to-date
-In order to automatically keep atom-shell up-to-date, run `asv latest -y` in a cronjob.
+In order to automatically keep atom-shell up-to-date, run `asv -y latest` in a cronjob.
 
 Passing `-y` will skip the question asv asks you when installing a new version.
 
@@ -120,7 +120,7 @@ Output from `asv --help`:
     asv latest [config ...]        Install or activate the latest atom-shell release
     asv stable [config ...]        Install or activate the latest stable atom-shell release
     asv <version> [config ...]     Install and/or use atom-shell <version>
-    asv custom <version> <tarball> [config ...]  Install custom atom-shell <tarball> with [args ...]
+    asv custom <version> <zipball> [config ...]  Install custom atom-shell <zipball> with [args ...]
     asv use <version> [args ...]   Execute atom-shell <version> with [args ...]
     asv bin <version>              Output bin path for <version>
     asv rm <version ...>           Remove the given version(s)
@@ -136,9 +136,6 @@ Output from `asv --help`:
     asv pre <event> rm [script]    Remove pre <event> script
     asv post <event> rm [script]   Remove post <event> script
 
-  Flags:
-    -y       Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
-
   Events:
 
     change   Occurs when switching atom-shell versions
@@ -146,8 +143,9 @@ Output from `asv --help`:
 
   Options:
 
-    -V, --version   Output current version of m
-    -h, --help      Display help information
+    -v, -V, --version   Output current version of m
+    -h, --help          Display help information
+    -y                  Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
 
   Aliases:
 

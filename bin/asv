@@ -6,21 +6,13 @@ VERSIONS_DIR=$ASV_DIR/versions
 BUILD_DIR_BASE=$ASV_DIR/atom-shell-
 
 # asv version
-VERSION="0.2.0"
+VERSION="1.0.0"
 
 # log path
 LOGPATH="/tmp/asv.log"
 
-# script arguments and flags
-ARGS=
-FLAGS=
-for arg in "$@"; do
-  if [[ $arg == -* ]]; then
-    FLAGS+=$arg
-  else
-    ARGS+=$arg
-  fi
-done
+# yes option
+YES=false
 
 #
 # Log the given <msg ...>
@@ -75,7 +67,7 @@ display_help() {
     asv latest [config ...]        Install or activate the latest atom-shell release
     asv stable [config ...]        Install or activate the latest stable atom-shell release
     asv <version> [config ...]     Install and/or use atom-shell <version>
-    asv custom <version> <tarball> [config ...]  Install custom atom-shell <tarball> with [args ...]
+    asv custom <version> <zipball> [config ...]  Install custom atom-shell <zipball> with [args ...]
     asv use <version> [args ...]   Execute atom-shell <version> with [args ...]
     asv bin <version>              Output bin path for <version>
     asv rm <version ...>           Remove the given version(s)
@@ -91,9 +83,6 @@ display_help() {
     asv pre <event> rm [script]    Remove pre <event> script
     asv post <event> rm [script]   Remove post <event> script
 
-  Flags:
-    -y       Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
-
   Events:
 
     change   Occurs when switching atom-shell versions
@@ -102,7 +91,8 @@ display_help() {
   Options:
 
     -v, -V, --version   Output current version of m
-    -h, --help      Display help information
+    -h, --help          Display help information
+    -y                  Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
 
   Aliases:
 
@@ -191,19 +181,16 @@ install_atoms() {
 prompt_install() {
   echo $1
 
-  if [[ $FLAGS =~ "-y" ]]; then
-    # Skip check
-    return
+  if [[ $YES == false ]]; then
+    while true; do
+      read -p "Installation may take a while. Would you like to proceed? [y/n] " yn
+      case $yn in
+        [Yy]* ) break;;
+        [Nn]* ) echo "Aborted."; exit 0;;
+        * ) echo "Please answer yes or no.";;
+      esac
+    done
   fi
-
-  while true; do
-    read -p "Installation may take a while. Would you like to proceed? [y/n] " yn
-    case $yn in
-      [Yy]* ) break;;
-      [Nn]* ) echo "Aborted."; exit 0;;
-      * ) echo "Please answer yes or no.";;
-    esac
-  done
 }
 
 #
@@ -225,9 +212,9 @@ install_bin() {
 
   if ! test -z $config; then
     # config was passed, must build from source
-    local tarball="v$version"
-    local url="https://github.com/atom/atom-shell/tarball/$tarball"
-    install_tarball $version $url $config
+    local zipball="v$version"
+    local url="https://github.com/atom/atom-shell/zipball/$zipball"
+    install_zipball $version $url $config
     exit 0
   fi
 
@@ -291,15 +278,12 @@ install_bin() {
     && log "installation complete"
 }
 
-# Install atoms <version> from source <tarball> [config ...]
+# Install atoms <version> from source <zipball> [config ...]
 #
-#   asv custom 0.20.5 https://github.com/atom/atom-shell/tarball/v0.20.5 flags
+#   asv custom 0.20.5 https://github.com/atom/atom-shell/zipball/v0.20.5 flags
 #
 
-install_tarball() {
-  echo "This feature is currently not supported."
-  exit 0
-
+install_zipball() {
   log "installing from source"
 
   pre install
@@ -314,10 +298,13 @@ install_tarball() {
 
   local dir=$VERSIONS_DIR/$version
 
-  # TODO: replace scons with atom-shell build system
-  cd "$builddir" \
-    && scons all \
-    && scons --prefix $dir $config install \
+  cd "$builddir"
+
+  local srcdir=`ls | sort -n | head -1`
+
+  cd "$srcdir" \
+    && ./script/bootstrap.py -v \
+    && ./script/build.py \
     && cd .. \
     && cleanup "$builddir" \
     && echo $config > "$dir/.config" \
@@ -344,11 +331,11 @@ bin_not_supported() {
   local OS=$1
   local version=$2
   local config=$3
-  local tarball="v$version"
-  local url="https://github.com/atom/atom-shell/tarball/$tarball"
+  local zipball="v$version"
+  local url="https://github.com/atom/atom-shell/zipball/$zipball"
   prompt_install "Binary for \"$OS $version\" not supported. Attempting to install from source."
   log "installing from source"
-  install_tarball $version $url $config
+  install_zipball $version $url $config
 }
 
 #
@@ -508,8 +495,8 @@ list_versions() {
 list_src_url() {
   test -z $1 && abort "version required"
   local version=$1
-  local tarball="v$version"
-  local url="https://github.com/atom/atom-shell/tarball/$tarball"
+  local zipball="v$version"
+  local url="https://github.com/atom/atom-shell/zipball/$zipball"
   echo "$url"
 }
 
@@ -653,19 +640,20 @@ else
     case $1 in
       -v|-V|--version) display_asv_version ;;
       -h|--help|help) display_help ;;
+      -y) YES=true ;;
       --latest) display_latest_version $2; exit ;;
       --stable) display_latest_stable_version $2; exit ;;
       bin|which) display_bin_path_for_version $2; exit ;;
-      as|use) shift; execute_with_version $ARGS; exit ;;
-      rm) shift; remove_versions $ARGS; exit ;;
+      as|use) shift; execute_with_version $@; exit ;;
+      rm) shift; remove_versions $@; exit ;;
       latest) install_atoms `$0 --latest`; exit ;;
       stable) install_atoms `$0 --stable`; exit ;;
       ls|list) list_versions $2; exit ;;
-      c|custom) shift; install_tarball $ARGS; exit ;;
-      pre) shift; install_hook pre $ARGS; exit ;;
-      post) shift; install_hook post $ARGS; exit ;;
-      src) shift; list_src_url $ARGS; exit;;
-      *) install_atoms $ARGS; exit ;;
+      c|custom) shift; install_zipball $@; exit ;;
+      pre) shift; install_hook pre $@; exit ;;
+      post) shift; install_hook post $@; exit ;;
+      src) shift; list_src_url $@; exit;;
+      *) install_atoms $@; exit ;;
     esac
     shift
   done
