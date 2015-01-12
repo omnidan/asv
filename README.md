@@ -104,6 +104,11 @@ Remove all post install hooks:
 
     $ asv post install rm
 
+## Automatically keeping atom-shell up-to-date
+In order to automatically keep atom-shell up-to-date, run `asv latest -y` in a cronjob.
+
+Passing `-y` will skip the question asv asks you when installing a new version.
+
 ## Usage
 Output from `asv --help`:
 ```
@@ -130,6 +135,9 @@ Output from `asv --help`:
                                      (scripts must use absolute paths)
     asv pre <event> rm [script]    Remove pre <event> script
     asv post <event> rm [script]   Remove post <event> script
+
+  Flags:
+    -y       Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
 
   Events:
 

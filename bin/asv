@@ -6,10 +6,21 @@ VERSIONS_DIR=$ASV_DIR/versions
 BUILD_DIR_BASE=$ASV_DIR/atom-shell-
 
 # asv version
-VERSION="0.1.0"
+VERSION="0.2.0"
 
 # log path
 LOGPATH="/tmp/asv.log"
+
+# script arguments and flags
+ARGS=
+FLAGS=
+for arg in "$@"; do
+  if [[ $arg == -* ]]; then
+    FLAGS+=$arg
+  else
+    ARGS+=$arg
+  fi
+done
 
 #
 # Log the given <msg ...>
@@ -79,6 +90,9 @@ display_help() {
                                      (scripts must use absolute paths)
     asv pre <event> rm [script]    Remove pre <event> script
     asv post <event> rm [script]   Remove post <event> script
+
+  Flags:
+    -y       Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
 
   Events:
 
@@ -176,6 +190,12 @@ install_atoms() {
 
 prompt_install() {
   echo $1
+
+  if [[ $FLAGS =~ "-y" ]]; then
+    # Skip check
+    return
+  fi
+
   while true; do
     read -p "Installation may take a while. Would you like to proceed? [y/n] " yn
     case $yn in
@@ -636,16 +656,16 @@ else
       --latest) display_latest_version $2; exit ;;
       --stable) display_latest_stable_version $2; exit ;;
       bin|which) display_bin_path_for_version $2; exit ;;
-      as|use) shift; execute_with_version $@; exit ;;
-      rm) shift; remove_versions $@; exit ;;
+      as|use) shift; execute_with_version $ARGS; exit ;;
+      rm) shift; remove_versions $ARGS; exit ;;
       latest) install_atoms `$0 --latest`; exit ;;
       stable) install_atoms `$0 --stable`; exit ;;
       ls|list) list_versions $2; exit ;;
-      c|custom) shift; install_tarball $@; exit ;;
-      pre) shift; install_hook pre $@; exit ;;
-      post) shift; install_hook post $@; exit ;;
-      src) shift; list_src_url $@; exit;;
-      *) install_atoms $@; exit ;;
+      c|custom) shift; install_tarball $ARGS; exit ;;
+      pre) shift; install_hook pre $ARGS; exit ;;
+      post) shift; install_hook post $ARGS; exit ;;
+      src) shift; list_src_url $ARGS; exit;;
+      *) install_atoms $ARGS; exit ;;
     esac
     shift
   done
