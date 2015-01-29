@@ -155,6 +155,9 @@ Output from `asv --help`:
     custom  c
 ```
 
+## Warning: Custom versions
+If you use a custom version that overwrites the `default_app` folder in the resources, it *will break* asv, because it relies on being able to get the atom-shell version by doing `atoms --version`, which doesn't work anymore when `default_app` is overwritten.
+
 ## Details
 
  `asv` by default installs atom-shell to _/usr/local/asv/versions_, from
