@@ -90,7 +90,7 @@ display_help() {
 
   Options:
 
-    -v, -V, --version   Output current version of m
+    -v, -V, --version   Output current version of asv
     -h, --help          Display help information
     -y                  Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
 
