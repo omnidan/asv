@@ -6,7 +6,7 @@ VERSIONS_DIR=$ASV_DIR/versions
 BUILD_DIR_BASE=$ASV_DIR/atom-shell-
 
 # asv version
-VERSION="1.0.1"
+VERSION="1.0.3"
 
 # log path
 LOGPATH="/tmp/asv.log"
@@ -120,12 +120,13 @@ check_current_version() {
   cd $ASV_PREFIX
   which atoms &> /dev/null
   if test $? -eq 0; then
-    active=`atoms --version | egrep -o '[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?'`
+    atomspath=`which atoms`
+    active=`readlink $atomspath | egrep -o '[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?'`
   fi
 }
 
 #
-# Display current atoms --version
+# Display current atom-shell version
 # and others installed.
 #
 
