@@ -3,10 +3,10 @@
 ASV_PREFIX=${ASV_PREFIX-/usr/local}
 ASV_DIR=$ASV_PREFIX/asv
 VERSIONS_DIR=$ASV_DIR/versions
-BUILD_DIR_BASE=$ASV_DIR/atom-shell-
+BUILD_DIR_BASE=$ASV_DIR/electron-
 
 # asv version
-VERSION="1.0.3"
+VERSION="1.1.0"
 
 # log path
 LOGPATH="/tmp/asv.log"
@@ -64,16 +64,16 @@ display_help() {
   Commands:
 
     asv                            Output versions installed
-    asv latest [config ...]        Install or activate the latest atom-shell release
-    asv stable [config ...]        Install or activate the latest stable atom-shell release
-    asv <version> [config ...]     Install and/or use atom-shell <version>
-    asv custom <version> <zipball> [config ...]  Install custom atom-shell <zipball> with [args ...]
-    asv use <version> [args ...]   Execute atom-shell <version> with [args ...]
+    asv latest [config ...]        Install or activate the latest electron release
+    asv stable [config ...]        Install or activate the latest stable electron release
+    asv <version> [config ...]     Install and/or use electron <version>
+    asv custom <version> <zipball> [config ...]  Install custom electron <zipball> with [args ...]
+    asv use <version> [args ...]   Execute electron <version> with [args ...]
     asv bin <version>              Output bin path for <version>
     asv rm <version ...>           Remove the given version(s)
-    asv --latest                   Output the latest atom-shell version available
-    asv --stable                   Output the latest stable atom-shell version available
-    asv ls                         Output the versions of atom-shell available
+    asv --latest                   Output the latest electron version available
+    asv --stable                   Output the latest stable electron version available
+    asv ls                         Output the versions of electron available
     asv src <version>              Output the url for source used for the given <version>
                                      (useful if installed from source)
     asv pre <event> [script]       Declare one or list scripts to execute before <event>
@@ -85,14 +85,14 @@ display_help() {
 
   Events:
 
-    change   Occurs when switching atom-shell versions
-    install  Occurs when installing a previously uninstalled atom-shell version
+    change   Occurs when switching electron versions
+    install  Occurs when installing a previously uninstalled electron version
 
   Options:
 
     -v, -V, --version   Output current version of asv
     -h, --help          Display help information
-    -y                  Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
+    -y                  Skips the question when installing a new version (useful for scripts that automatically update electron)
 
   Aliases:
 
@@ -126,7 +126,7 @@ check_current_version() {
 }
 
 #
-# Display current atom-shell version
+# Display current electron version
 # and others installed.
 #
 
@@ -163,12 +163,14 @@ install_atoms() {
   if test -d $dir; then
     pre change
     rm $ASV_PREFIX/bin/atoms 2>&1
+    rm $ASV_PREFIX/bin/electron 2>&1
     cd $dir \
       && ln -s $dir/atoms $ASV_PREFIX/bin/atoms \
+      && ln -s $dir/atoms $ASV_PREFIX/bin/electron \
       && post change
   # install
   else
-    prompt_install "atom-shell version $version is not installed."
+    prompt_install "electron version $version is not installed."
     install_bin $version $config
   fi
 }
@@ -197,14 +199,14 @@ prompt_install() {
 #
 # Install atoms <version> binary
 #
-#   template    https://github.com/atom/atom-shell/releases/download/$VERSION/atom-shell-$VERSION-$OS-$ARCH.zip
+#   template    https://github.com/atom/electron/releases/download/$VERSION/electron-$VERSION-$OS-$ARCH.zip
 #
-#   linux32     https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-linux-ia32.zip
-#   linux64     https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-linux-x64.zip
-#   osx64       https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-darwin-x64.zip
-#   
+#   linux32     https://github.com/atom/electron/releases/download/v0.20.5/electron-v0.20.5-linux-ia32.zip
+#   linux64     https://github.com/atom/electron/releases/download/v0.20.5/electron-v0.20.5-linux-x64.zip
+#   osx64       https://github.com/atom/electron/releases/download/v0.20.5/electron-v0.20.5-darwin-x64.zip
+#
 #   not supported
-#   win32       https://github.com/atom/atom-shell/releases/download/v0.20.5/atom-shell-v0.20.5-win32-ia32.zip
+#   win32       https://github.com/atom/electron/releases/download/v0.20.5/electron-v0.20.5-win32-ia32.zip
 #
 
 install_bin() {
@@ -214,7 +216,7 @@ install_bin() {
   if ! test -z $config; then
     # config was passed, must build from source
     local zipball="v$version"
-    local url="https://github.com/atom/atom-shell/zipball/$zipball"
+    local url="https://github.com/atom/electron/zipball/$zipball"
     install_zipball $version $url $config
     exit 0
   fi
@@ -243,9 +245,18 @@ install_bin() {
       bin_not_supported $OS $version $config ;;
   esac
 
+  # parse version string
+  IFS='.' read -a v <<< "$version"
+
+  # atom-shell backwards compatibility
+  if [ "${v[0]}" -eq 0 ] && [ "${v[1]}" -lt 24 ]; then
+    local zip="atom-shell-v$version-$os-$arch.zip"
+  else
+    local zip="electron-v$version-$os-$arch.zip"
+  fi
+
   # check the download url
-  local zip="atom-shell-v$version-$os-$arch.zip"
-  local url="https://github.com/atom/atom-shell/releases/download/v$version/$zip"
+  local url="https://github.com/atom/electron/releases/download/v$version/$zip"
 
   if ! good $url; then
     bin_not_supported $OS $version $config
@@ -260,12 +271,22 @@ install_bin() {
   local builddir="$BUILD_DIR_BASE$version"
   download $version $url $builddir
 
-  case $os in
-    linux* )
-      ln -s ./atom ./atoms ;;
-    darwin* )
-      ln -s ./Atom.app/Contents/MacOS/Atom ./atoms ;;
-  esac
+  # atom-shell backwards compatibility
+  if [ "${v[0]}" -eq 0 ] && [ "${v[1]}" -lt 24 ]; then
+    case $os in
+      linux* )
+        ln -s ./atom ./atoms ;;
+      darwin* )
+        ln -s ./Atom.app/Contents/MacOS/Atom ./atoms ;;
+    esac
+  else
+    case $os in
+      linux* )
+        ln -s ./electron ./atoms ;;
+      darwin* )
+        ln -s ./Electron.app/Contents/MacOS/Electron ./atoms ;;
+    esac
+  fi
 
   # copy binaries to version directory
   local dir=$VERSIONS_DIR/$version
@@ -281,7 +302,7 @@ install_bin() {
 
 # Install atoms <version> from source <zipball> [config ...]
 #
-#   asv custom 0.20.5 https://github.com/atom/atom-shell/zipball/v0.20.5 flags
+#   asv custom 0.20.5 https://github.com/atom/electron/zipball/v0.20.5 flags
 #
 
 install_zipball() {
@@ -333,7 +354,7 @@ bin_not_supported() {
   local version=$2
   local config=$3
   local zipball="v$version"
-  local url="https://github.com/atom/atom-shell/zipball/$zipball"
+  local url="https://github.com/atom/electron/zipball/$zipball"
   prompt_install "Binary for \"$OS $version\" not supported. Attempting to install from source."
   log "installing from source"
   install_zipball $version $url $config
@@ -353,14 +374,14 @@ download() {
 
   # fetch and unpack
   cd $builddir \
-    && $GET $url > atom-shell.zip \
-    && unzip ./atom-shell.zip > $LOGPATH 2>&1
+    && $GET $url > electron.zip \
+    && unzip ./electron.zip > $LOGPATH 2>&1
 
   # see if things are alright
   if test $? -gt 0; then
     cleanup "$builddir"
     printf "\033[31mError: installation failed\033[0m\n"
-    printf "  atom-shell version $version does not exist,\n"
+    printf "  electron version $version does not exist,\n"
     printf "  asv failed to fetch the zip,\n"
     printf "  or unzip failed. Try a different\n"
     printf "  version or view $LOGPATH to view\n"
@@ -368,7 +389,7 @@ download() {
     exit 1
   fi
 
-  rm ./atom-shell.zip
+  rm ./electron.zip
 }
 
 #
@@ -421,7 +442,7 @@ display_bin_path_for_version() {
 }
 
 #
-# Execute the given <version> of atom-shell
+# Execute the given <version> of electron
 # with [args ...]
 #
 
@@ -440,39 +461,39 @@ execute_with_version() {
 }
 
 #
-# Display the latest atom-shell release version.
+# Display the latest electron release version.
 #
 
 display_latest_version() {
-  $GET 2> /dev/null "https://api.github.com/repos/atom/atom-shell/releases?per_page=1" \
-    | egrep -o 'atom-shell v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
+  $GET 2> /dev/null "https://api.github.com/repos/atom/electron/releases?per_page=1" \
+    | egrep -o 'electron v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
     | sort -u -k 1,1n -k 2,2n -k 3,3 -t . \
     | awk -F 'v' '{ print $2 }' \
     | tail -n1
 }
 
 #
-# Display the latest stable atom-shell release version.
-# TODO: once atom-shell hits stable, update this to get the actual stable version
+# Display the latest stable electron release version.
+# TODO: once electron hits stable, update this to get the actual stable version
 #
 
 display_latest_stable_version() {
-  $GET 2> /dev/null "https://api.github.com/repos/atom/atom-shell/releases?per_page=1" \
-    | egrep -o 'atom-shell v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
+  $GET 2> /dev/null "https://api.github.com/repos/atom/electron/releases?per_page=1" \
+    | egrep -o 'electron v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
     | sort -u -k 1,1n -k 2,2n -k 3,3 -t . \
     | awk -F 'v' '{ print $2 }' \
     | tail -n1
 }
 
 #
-# Display the available atom-shell versions.
+# Display the available electron versions.
 #
 
 list_versions() {
   check_current_version
   local versions=""
-  versions=`$GET 2> /dev/null https://api.github.com/repos/atom/atom-shell/releases \
-    | egrep -o 'atom-shell v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
+  versions=`$GET 2> /dev/null https://api.github.com/repos/atom/electron/releases \
+    | egrep -o 'electron v[0-9]+\.[0-9]+\.[0-9]+([-_\.][a-zA-Z0-9]+)?' \
     | sort -u -k 1,1n -k 2,2n -k 3,3 -t . \
     | awk -F 'v' '{ print "  " $2 }'`
 
@@ -497,7 +518,7 @@ list_src_url() {
   test -z $1 && abort "version required"
   local version=$1
   local zipball="v$version"
-  local url="https://github.com/atom/atom-shell/zipball/$zipball"
+  local url="https://github.com/atom/electron/zipball/$zipball"
   echo "$url"
 }
 

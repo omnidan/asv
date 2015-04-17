@@ -1,6 +1,6 @@
 # asv [![npm version](https://badge.fury.io/js/asv.svg?style=flat)](http://badge.fury.io/js/asv)
 
- [Atom Shell](https://github.com/atom/atom-shell) version manager
+ [Electron / Atom Shell](https://github.com/atom/electron) version manager
 
 ## Installation
 
@@ -42,7 +42,7 @@ Use or install the stable official release (_Note: Right now there is no stable 
 Install a custom or patched version of atom-shell from a zipball:
 
     $ asv custom 0.20.5-me https://github.com/atom/atom-shell/zipball/v0.20.5
-    
+
 Install a version of atom-shell from source:
 
     $ asv 0.20.5 source
@@ -62,7 +62,7 @@ them directly by asking `asv` for the binary path:
 
     $ asv bin 0.20.5
     /usr/local/asv/versions/0.20.5/bin/
-    
+
 Start up atom-shell 0.20.5 regardless of the active version:
 
     $ asv use 0.20.5
@@ -73,33 +73,33 @@ When installing or changing the active version we might want to run custom scrip
     $ asv post install /path/to/script
     $ asv pre change /path/to/my/script
     $ asv post change /path/to/script
-    
+
 Multiple scripts may be added for any event. To add two `pre change` scripts:
 
     $ asv pre change /path/to/script1
     $ asv pre change /path/to/script2
-    
+
 Scripts are executed in the order they were added.
-    
+
 List all pre change hooks:
 
     $ asv pre change
-    
+
     /path/to/script1
     /path/to/script2
-    
+
 List all post install hooks:
 
     $ asv post install
-    
+
     /path/to/scriptA
     /path/to/scriptB
     /path/to/scriptC
-    
+
 To remove a post install hook:
 
     $ asv post install rm /path/to/scriptB
-    
+
 Remove all post install hooks:
 
     $ asv post install rm
