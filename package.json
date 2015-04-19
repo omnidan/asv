@@ -1,6 +1,6 @@
 {
   "name": "asv",
-  "version": "1.1.0",
+  "version": "1.1.1",
   "description": "electron / atom-shell version management",
   "homepage": "https://github.com/omnidan/asv",
   "bugs": "https://github.com/omnidan/asv/issues",
