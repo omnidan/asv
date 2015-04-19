@@ -16,12 +16,12 @@ or
 
 ### Installing Binaries
 
-Install a few versions, the version given becomes the active atom-shell binary once installation is complete.
+Install a few versions, the version given becomes the active electron/atom-shell binary once installation is complete.
 
     $ asv 0.20.5
     $ asv 0.20.4
 
-Run `atoms` to run the selected version of atom-shell.
+Run `atoms` to run the selected version of electron/atom-shell.
 
 List installed binaries:
 
@@ -35,15 +35,15 @@ Use or install the latest official release:
 
     $ asv latest
 
-Use or install the stable official release (_Note: Right now there is no stable version of atom-shell, this will use the latest release_):
+Use or install the stable official release (_Note: Right now there is no stable version of electron, this will use the latest release_):
 
     $ asv stable
 
-Install a custom or patched version of atom-shell from a zipball:
+Install a custom or patched version of electron/atom-shell from a zipball:
 
     $ asv custom 0.20.5-me https://github.com/atom/atom-shell/zipball/v0.20.5
 
-Install a version of atom-shell from source:
+Install a version of electron/atom-shell from source:
 
     $ asv 0.20.5 source
 
@@ -57,13 +57,13 @@ _Note that you cannot remove the actively running version. Change to a different
 
 ### Binary Usage
 
-When running multiple versions of atom-shell, we can target
+When running multiple versions of electron/atom-shell, we can target
 them directly by asking `asv` for the binary path:
 
     $ asv bin 0.20.5
     /usr/local/asv/versions/0.20.5/bin/
 
-Start up atom-shell 0.20.5 regardless of the active version:
+Start up electron/atom-shell 0.20.5 regardless of the active version:
 
     $ asv use 0.20.5
 
@@ -104,8 +104,8 @@ Remove all post install hooks:
 
     $ asv post install rm
 
-## Automatically keeping atom-shell up-to-date
-In order to automatically keep atom-shell up-to-date, run `asv -y latest` in a cronjob.
+## Automatically keeping electron / atom-shell up-to-date
+In order to automatically keep electron / atom-shell up-to-date, run `asv -y latest` in a cronjob.
 
 Passing `-y` will skip the question asv asks you when installing a new version.
 
@@ -143,7 +143,7 @@ Output from `asv --help`:
 
   Options:
 
-    -v, -V, --version   Output current version of m
+    -v, -V, --version   Output current version of asv
     -h, --help          Display help information
     -y                  Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
 
@@ -155,12 +155,19 @@ Output from `asv --help`:
     custom  c
 ```
 
+## Does this work with electron AND atom-shell?
+Yes, `asv` checks the version string you passed, for versions <=0.23.0, atom-shell is downloaded and installed instead of electron, for newer versions, electron is downloaded and installed.
+
+The command `atoms` works just like before. There is also an `electron` command, which is an alias to `atoms`.
+
+Everything else should work just like nothing happened. If you do run into an issue, first make sure you have the latest `asv` version (>=1.1) installed, or update `asv` by running `npm install -g asv` - if it still doesn't work, please report your issue [on github](https://github.com/omnidan/asv/issues), it could be related to the fact that atom-shell was renamed to electron.
+
 ## Details
 
- `asv` by default installs atom-shell to _/usr/local/asv/versions_, from
- which it can see what you have currently installed, and activate previously installed versions of atom-shell when `asv <version>` is invoked again.
+ `asv` by default installs electron/atom-shell to _/usr/local/asv/versions_, from
+ which it can see what you have currently installed, and activate previously installed versions of electron/atom-shell when `asv <version>` is invoked again.
 
- Activated atom-shell versions are then installed to the prefix _/usr/local_, which may be altered via the __ASV_PREFIX__ environment variable.
+ Activated electron/atom-shell versions are then installed to the prefix _/usr/local_, which may be altered via the __ASV_PREFIX__ environment variable.
 
  To alter where `asv` operates simply export __ASV_PREFIX__ to whatever you prefer.
 
