@@ -117,16 +117,16 @@ Output from `asv --help`:
   Commands:
 
     asv                            Output versions installed
-    asv latest [config ...]        Install or activate the latest atom-shell release
-    asv stable [config ...]        Install or activate the latest stable atom-shell release
-    asv <version> [config ...]     Install and/or use atom-shell <version>
-    asv custom <version> <zipball> [config ...]  Install custom atom-shell <zipball> with [args ...]
-    asv use <version> [args ...]   Execute atom-shell <version> with [args ...]
+    asv latest [config ...]        Install or activate the latest electron release
+    asv stable [config ...]        Install or activate the latest stable electron release
+    asv <version> [config ...]     Install and/or use electron <version>
+    asv custom <version> <zipball> [config ...]  Install custom electron <zipball> with [args ...]
+    asv use <version> [args ...]   Execute electron <version> with [args ...]
     asv bin <version>              Output bin path for <version>
     asv rm <version ...>           Remove the given version(s)
-    asv --latest                   Output the latest atom-shell version available
-    asv --stable                   Output the latest stable atom-shell version available
-    asv ls                         Output the versions of atom-shell available
+    asv --latest                   Output the latest electron version available
+    asv --stable                   Output the latest stable electron version available
+    asv ls                         Output the versions of electron available
     asv src <version>              Output the url for source used for the given <version>
                                      (useful if installed from source)
     asv pre <event> [script]       Declare one or list scripts to execute before <event>
@@ -138,14 +138,14 @@ Output from `asv --help`:
 
   Events:
 
-    change   Occurs when switching atom-shell versions
-    install  Occurs when installing a previously uninstalled atom-shell version
+    change   Occurs when switching electron versions
+    install  Occurs when installing a previously uninstalled electron version
 
   Options:
 
     -v, -V, --version   Output current version of asv
     -h, --help          Display help information
-    -y                  Skips the question when installing a new version (useful for scripts that automatically update atom-shell)
+    -y                  Skips the question when installing a new version (useful for scripts that automatically update electron)
 
   Aliases:
 
