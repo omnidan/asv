@@ -18,6 +18,11 @@ Alternatively, you can use the `electron` command instead of `atoms`:
 
     $ electron
 
+And, of course, you can launch apps with it:
+
+    $ electron path/to/electron/app/
+    $ electron electron_app.asar
+
 ### Installing Binaries
 
 Install a few versions, the version given becomes the active electron/atom-shell binary once installation is complete.
