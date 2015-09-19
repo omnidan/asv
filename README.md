@@ -14,6 +14,10 @@ or
     $ asv latest
     $ atoms
 
+Alternatively, you can use the `electron` command instead of `atoms`:
+
+    $ electron
+
 ### Installing Binaries
 
 Install a few versions, the version given becomes the active electron/atom-shell binary once installation is complete.
